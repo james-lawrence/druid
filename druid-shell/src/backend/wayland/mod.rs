@@ -22,7 +22,6 @@ mod events;
 pub mod keyboard;
 pub mod menu;
 pub mod pointers;
-pub mod screen;
 pub mod surfaces;
 pub mod util;
 pub mod window;
