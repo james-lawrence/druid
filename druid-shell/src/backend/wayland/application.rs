@@ -15,7 +15,7 @@
 #![allow(clippy::single_match)]
 
 use super::{
-    clipboard::Clipboard, error::Error, events::WaylandSource, keyboard, pointers, surfaces,
+    clipboard::Clipboard, error::Error, events::WaylandSource, keyboard, pointers, surfaces, displays,
     window::WindowHandle,
 };
 
@@ -151,8 +151,8 @@ impl Application {
         tracing::info!("wayland application initiated");
         // connect to the server. Internally an `Arc`, so cloning is cheap. Must be kept alive for
         // the duration of the app.
-        let wl_server = wl::Display::connect_to_env()?;
-
+        let globals = displays::unwrap(&displays::GLOBAL)?;
+        let wl_server = globals.display.clone();
         // create an event queue (required for receiving events from the server)
         let mut event_queue = wl_server.create_event_queue();
 
@@ -181,8 +181,8 @@ impl Application {
                     interface,
                     version,
                 } => {
-                    tracing::trace!("invalidate_rect initiated");
                     if interface.as_str() == "wl_output" && version >= 3 {
+                        tracing::info!("wayland output created detected (deprecated)");
                         let output = registry.bind::<WlOutput>(3, id);
                         let output = Output::new(output);
                         let output_id = output.id();

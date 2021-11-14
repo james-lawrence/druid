@@ -18,13 +18,16 @@ pub mod application;
 pub mod clipboard;
 pub mod dialog;
 pub mod error;
-mod events;
 pub mod keyboard;
 pub mod menu;
 pub mod pointers;
+pub mod screen;
 pub mod surfaces;
 pub mod util;
 pub mod window;
+
+mod events;
+mod displays;
 
 /// Little enum to make it clearer what some return values mean.
 #[derive(Copy, Clone)]
