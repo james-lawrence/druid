@@ -96,7 +96,6 @@ pub(crate) struct ApplicationData {
     pub(super) wl_server: wl::Display,
     pub(super) event_queue: Rc<RefCell<wl::EventQueue>>,
     // Wayland globals
-    pub(super) globals: wl::GlobalManager,
     pub(super) xdg_base: wl::Main<XdgWmBase>,
     pub(super) zxdg_decoration_manager_v1: wl::Main<ZxdgDecorationManagerV1>,
     pub(super) zwlr_layershell_v1: wl::Main<ZwlrLayerShellV1>,
@@ -168,98 +167,101 @@ impl Application {
         let seats: Rc<RefCell<BTreeMap<u32, Rc<RefCell<Seat>>>>> =
             Rc::new(RefCell::new(BTreeMap::new()));
 
-        // This object will create a container for the global wayland objects, and request that
-        // it is populated by the server. Doesn't take ownership of the registry, we are
-        // responsible for keeping it alive.
-        let weak_outputs = Rc::downgrade(&outputs);
-        let weak_seats = Rc::downgrade(&seats);
-        let globals = wl::GlobalManager::new_with_cb(
-            &attached_server,
-            move |event, registry, _| match event {
-                wl::GlobalEvent::New {
-                    id,
-                    interface,
-                    version,
-                } => {
-                    if interface.as_str() == "wl_output" && version >= 3 {
-                        tracing::info!("wayland output created detected (deprecated)");
-                        let output = registry.bind::<WlOutput>(3, id);
-                        let output = Output::new(output);
-                        let output_id = output.id();
-                        output.wl_output.quick_assign(with_cloned!(weak_outputs; move |_, event, _| {
-                            match weak_outputs.upgrade().unwrap().borrow_mut().get_mut(&output_id) {
-                                Some(o) => o.process_event(event),
-                                None => tracing::warn!(
-                                    "wayland sent an event for an output that doesn't exist {:?} {:?}",
-                                    &output_id,
-                                    &event,
-                                ),
-                            }
-                        }));
-                        let prev_output = weak_outputs
-                            .upgrade()
-                            .unwrap()
-                            .borrow_mut()
-                            .insert(output_id, output);
-                        assert!(
-                            prev_output.is_none(),
-                            "internal: wayland should always use new IDs"
-                        );
-                    } else if interface.as_str() == "wl_seat" && version >= 7 {
-                        let new_seat = registry.bind::<WlSeat>(7, id);
-                        let prev_seat = weak_seats
-                            .upgrade()
-                            .unwrap()
-                            .borrow_mut()
-                            .insert(id, Rc::new(RefCell::new(Seat::new(new_seat))));
-                        assert!(
-                            prev_seat.is_none(),
-                            "internal: wayland should always use new IDs"
-                        );
-                        // Defer setting up the pointer/keyboard event handling until we've
-                        // finished constructing the `Application`. That way we can pass it as a
-                        // parameter.
-                    }
-                }
-                wl::GlobalEvent::Removed { id, interface } if interface.as_str() == "wl_output" => {
-                    match weak_outputs.upgrade().unwrap().borrow_mut().remove(&id) {
-                        Some(removed) => removed.wl_output.release(),
-                        None => tracing::warn!(
-                            "wayland sent a remove event for an output that doesn't exist"
-                        ),
-                    }
-                }
-                _ => (), // ignore other interfaces
-            },
-        );
+        let queue = globals.display.create_event_queue();
+        let attached = globals.display.clone().attach(queue.token());
+        let globalm = wl::GlobalManager::new(&attached);
+        // // This object will create a container for the global wayland objects, and request that
+        // // it is populated by the server. Doesn't take ownership of the registry, we are
+        // // responsible for keeping it alive.
+        // let weak_outputs = Rc::downgrade(&outputs);
+        // let weak_seats = Rc::downgrade(&seats);
+        // let globals = wl::GlobalManager::new_with_cb(
+        //     &attached_server,
+        //     move |event, registry, _| match event {
+        //         wl::GlobalEvent::New {
+        //             id,
+        //             interface,
+        //             version,
+        //         } => {
+        //             if interface.as_str() == "wl_output" && version >= 3 {
+        //                 tracing::info!("wayland output created detected (deprecated)");
+        //                 let output = registry.bind::<WlOutput>(3, id);
+        //                 let output = Output::new(output);
+        //                 let output_id = output.id();
+        //                 output.wl_output.quick_assign(with_cloned!(weak_outputs; move |_, event, _| {
+        //                     match weak_outputs.upgrade().unwrap().borrow_mut().get_mut(&output_id) {
+        //                         Some(o) => o.process_event(event),
+        //                         None => tracing::warn!(
+        //                             "wayland sent an event for an output that doesn't exist {:?} {:?}",
+        //                             &output_id,
+        //                             &event,
+        //                         ),
+        //                     }
+        //                 }));
+        //                 let prev_output = weak_outputs
+        //                     .upgrade()
+        //                     .unwrap()
+        //                     .borrow_mut()
+        //                     .insert(output_id, output);
+        //                 assert!(
+        //                     prev_output.is_none(),
+        //                     "internal: wayland should always use new IDs"
+        //                 );
+        //             } else if interface.as_str() == "wl_seat" && version >= 7 {
+        //                 let new_seat = registry.bind::<WlSeat>(7, id);
+        //                 let prev_seat = weak_seats
+        //                     .upgrade()
+        //                     .unwrap()
+        //                     .borrow_mut()
+        //                     .insert(id, Rc::new(RefCell::new(Seat::new(new_seat))));
+        //                 assert!(
+        //                     prev_seat.is_none(),
+        //                     "internal: wayland should always use new IDs"
+        //                 );
+        //                 // Defer setting up the pointer/keyboard event handling until we've
+        //                 // finished constructing the `Application`. That way we can pass it as a
+        //                 // parameter.
+        //             }
+        //         }
+        //         wl::GlobalEvent::Removed { id, interface } if interface.as_str() == "wl_output" => {
+        //             match weak_outputs.upgrade().unwrap().borrow_mut().remove(&id) {
+        //                 Some(removed) => removed.wl_output.release(),
+        //                 None => tracing::warn!(
+        //                     "wayland sent a remove event for an output that doesn't exist"
+        //                 ),
+        //             }
+        //         }
+        //         _ => (), // ignore other interfaces
+        //     },
+        // );
 
         // do a round trip to make sure we have all the globals
         event_queue
             .sync_roundtrip(&mut (), |_, _, _| unreachable!())
             .map_err(Error::fatal)?;
 
-        let mut globals_list = globals.list();
-        globals_list.sort_by(|(_, name1, version1), (_, name2, version2)| {
-            name1.cmp(name2).then(version1.cmp(version2))
-        });
+        // let mut globals_list = globals.list();
+        // globals_list.sort_by(|(_, name1, version1), (_, name2, version2)| {
+        //     name1.cmp(name2).then(version1.cmp(version2))
+        // });
 
-        for (id, name, version) in globals_list.into_iter() {
-            tracing::trace!("{:?}@{:?} - {:?}", name, version, id);
-        }
+        // for (id, name, version) in globals_list.into_iter() {
+        //     tracing::trace!("{:?}@{:?} - {:?}", name, version, id);
+        // }
 
-        let xdg_base = globals
+        let xdg_base = globalm
             .instantiate_exact::<XdgWmBase>(2)
             .map_err(|e| Error::global("xdg_wm_base", 2, e))?;
-        let zxdg_decoration_manager_v1 = globals
+        let zxdg_decoration_manager_v1 = globalm
             .instantiate_exact::<ZxdgDecorationManagerV1>(1)
             .map_err(|e| Error::global("zxdg_decoration_manager_v1", 1, e))?;
-        let zwlr_layershell_v1 = globals
+        let zwlr_layershell_v1 = globalm
             .instantiate_exact::<ZwlrLayerShellV1>(1)
             .map_err(|e| Error::global("zwlr_layershell_v1", 1, e))?;
-        let wl_compositor = globals
+        let wl_compositor = globalm
             .instantiate_exact::<WlCompositor>(4)
             .map_err(|e| Error::global("wl_compositor", 4, e))?;
-        let wl_shm = globals
+        let wl_shm = globalm
             .instantiate_exact::<WlShm>(1)
             .map_err(|e| Error::global("wl_shm", 1, e))?;
 
@@ -291,7 +293,6 @@ impl Application {
         let app_data = std::sync::Arc::new(ApplicationData {
             wl_server,
             event_queue: Rc::new(RefCell::new(event_queue)),
-            globals,
             xdg_base,
             zxdg_decoration_manager_v1,
             zwlr_layershell_v1,
