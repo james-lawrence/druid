@@ -19,7 +19,7 @@ use crate::kurbo::{Point, Size};
 use crate::menu::MenuManager;
 use crate::shell::{Application, Error as PlatformError, WindowBuilder, WindowHandle, WindowLevel};
 use crate::widget::LabelText;
-use crate::win_handler::{AppHandler, AppState};
+use crate::win_handler::{AppHandler, AppState, DruidHandler};
 use crate::window::WindowId;
 use crate::{AppDelegate, Data, Env, LocalizedString, Menu, Widget};
 
@@ -51,9 +51,13 @@ pub enum WindowSizePolicy {
     User,
 }
 
+/// WindowHandleBuilderFn used to swap out how window handles are built.
+pub type WindowHandleBuilderFn<T> =
+    dyn FnMut(&Application, Box<DruidHandler<T>>) -> Result<WindowHandle, PlatformError>;
+
 /// Window configuration that can be applied to a WindowBuilder, or to an existing WindowHandle.
 /// It does not include anything related to app data.
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct WindowConfig {
     pub(crate) size_policy: WindowSizePolicy,
     pub(crate) size: Option<Size>,
@@ -75,6 +79,8 @@ pub struct WindowDesc<T> {
     /// This can be used to track a window from when it is launched and when
     /// it actually connects.
     pub id: WindowId,
+    /// backend window handle builder, allows swapping out a backend.
+    pub(crate) backend: Option<Box<WindowHandleBuilderFn<T>>>,
 }
 
 /// The parts of a window, pending construction, that are dependent on top level app state
@@ -185,8 +191,7 @@ impl<T: Data> AppLauncher<T> {
     ///
     /// # Panics
     ///
-    /// Panics if the subscriber fails to initialize, for example if a `tracing`/`tracing_wasm`
-    /// global logger was already set.
+    /// Panics if the subscriber fails to initialize.
     pub fn log_to_console(self) -> Self {
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -462,7 +467,14 @@ impl<T: Data> WindowDesc<T> {
             pending: PendingWindow::new(root),
             config: WindowConfig::default(),
             id: WindowId::next(),
+            backend: None,
         }
+    }
+
+    /// set backend builder of the window handle.
+    pub fn backend(mut self, backend: Box<WindowHandleBuilderFn<T>>) -> Self {
+        self.backend = Some(backend);
+        self
     }
 
     /// Set the title for this window. This is a [`LabelText`]; it can be either
@@ -596,6 +608,6 @@ impl<T: Data> WindowDesc<T> {
         self,
         state: &mut AppState<T>,
     ) -> Result<WindowHandle, PlatformError> {
-        state.build_native_window(self.id, self.pending, self.config)
+        state.build_native_window(self.id, self.pending, self.config, self.backend)
     }
 }

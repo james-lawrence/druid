@@ -36,7 +36,7 @@ use crate::{
     TimerToken, WidgetId, WindowDesc, WindowId,
 };
 
-use crate::app::{PendingWindow, WindowConfig};
+use crate::app::{PendingWindow, WindowConfig, WindowHandleBuilderFn};
 use crate::command::sys as sys_cmd;
 use druid_shell::WindowBuilder;
 
@@ -896,30 +896,41 @@ impl<T: Data> AppState<T> {
         id: WindowId,
         mut pending: PendingWindow<T>,
         config: WindowConfig,
+        backend: Option<Box<WindowHandleBuilderFn<T>>>,
     ) -> Result<WindowHandle, PlatformError> {
-        let mut builder = WindowBuilder::new(self.app());
-        config.apply_to_builder(&mut builder);
-
         let data = self.data();
         let env = self.env();
 
         pending.size_policy = config.size_policy;
         pending.title.resolve(&data, &env);
-        builder.set_title(pending.title.display_text().to_string());
 
-        let platform_menu = pending
-            .menu
-            .as_mut()
-            .map(|m| m.initialize(Some(id), &data, &env));
-        if let Some(menu) = platform_menu {
-            builder.set_menu(menu);
+        match backend {
+            Some(mut backend) => {
+                self.add_window(id, pending);
+                backend(
+                    &self.app(),
+                    Box::new(DruidHandler::new_shared((*self).clone(), id)),
+                )
+            }
+            None => {
+                let mut builder = WindowBuilder::new(self.app());
+                config.apply_to_builder(&mut builder);
+                builder.set_title(pending.title.display_text().to_string());
+
+                let platform_menu = pending
+                    .menu
+                    .as_mut()
+                    .map(|m| m.initialize(Some(id), &data, &env));
+                if let Some(menu) = platform_menu {
+                    builder.set_menu(menu);
+                }
+
+                let handler = DruidHandler::new_shared((*self).clone(), id);
+                builder.set_handler(Box::new(handler));
+                self.add_window(id, pending);
+                builder.build()
+            }
         }
-
-        let handler = DruidHandler::new_shared((*self).clone(), id);
-        builder.set_handler(Box::new(handler));
-
-        self.add_window(id, pending);
-        builder.build()
     }
 }
 

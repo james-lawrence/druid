@@ -287,7 +287,12 @@ impl Surface {
                         .borrow_mut()
                         .preferred
                         .get_or_insert(o.name.clone());
-                    handle.inner.output.borrow_mut().current.get_or_insert(o);
+                    handle
+                        .inner
+                        .output
+                        .borrow_mut()
+                        .current
+                        .get_or_insert(o.clone());
                 }
                 handle.inner.ls_surface.borrow().destroy();
                 handle.inner.available.replace(false);

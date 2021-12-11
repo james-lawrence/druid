@@ -22,3 +22,6 @@ pub mod linux;
 
 #[cfg(any(doc, target_os = "macos"))]
 pub mod mac;
+
+#[cfg(any(doc, all(feature = "wayland", target_os = "linux")))]
+pub mod wayland;
