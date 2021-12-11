@@ -421,10 +421,9 @@ impl WindowBuilder {
         };
 
         let handler = self.handler.expect("must set a window handler");
-        // compute the initial window size.
-        let initial_size = appdata.initial_window_size(self.size);
+
         let surface =
-            surfaces::toplevel::Surface::new(appdata.clone(), handler, initial_size, self.min_size);
+            surfaces::toplevel::Surface::new(appdata.clone(), handler, self.size, self.min_size);
 
         (&surface as &dyn surfaces::Decor).set_title(self.title);
 
@@ -506,11 +505,7 @@ pub mod layershell {
                 }
             };
 
-            // compute the initial window size.
-            let mut updated = self.config.clone();
-            updated.initial_size = appdata.initial_window_size(self.config.initial_size);
-
-            let surface = surfaces::layershell::Surface::new(appdata.clone(), winhandle, updated);
+            let surface = surfaces::layershell::Surface::new(appdata.clone(), winhandle,  self.config.clone());
 
             let handle = WindowHandle::new(
                 surface.clone(),

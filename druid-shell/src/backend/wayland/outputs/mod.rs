@@ -31,7 +31,7 @@ pub(super) fn current() -> Result<Vec<Meta>, error::Error> {
     let mut cache = std::collections::BTreeMap::new();
     let mut eventloop: calloop::EventLoop<(
         calloop::LoopSignal,
-        &mut std::collections::BTreeMap<String, Meta>,
+        &mut std::collections::BTreeMap<u32, Meta>,
     )> = calloop::EventLoop::try_new().expect("failed to initialize the displays event loop!");
     let signal = eventloop.get_signal();
     let handle = eventloop.handle();
@@ -45,10 +45,10 @@ pub(super) fn current() -> Result<Vec<Meta>, error::Error> {
 
                 match event {
                     Event::Located(meta) => {
-                        cache.insert(meta.name.clone(), meta);
+                        cache.insert(meta.id(), meta);
                     }
                     Event::Removed(meta) => {
-                        cache.remove(&meta.name);
+                        cache.remove(&meta.id());
                     }
                 }
             }

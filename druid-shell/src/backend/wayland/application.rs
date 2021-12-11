@@ -19,7 +19,7 @@ use super::{
     window::WindowHandle,
 };
 
-use crate::{backend, kurbo, mouse, AppHandler, TimerToken};
+use crate::{backend, mouse, AppHandler, TimerToken};
 
 use calloop;
 
@@ -199,7 +199,6 @@ impl Application {
         );
 
         let env = display::new(dispatcher)?;
-
         display::print(&env.registry);
 
         let zxdg_decoration_manager_v1 = env
@@ -335,6 +334,7 @@ impl Application {
                     calloop::channel::Event::Closed => {}
                     calloop::channel::Event::Msg(output) => match output {
                         outputs::Event::Located(output) => {
+                            tracing::debug!("output added {:?} {:?}", output.gid, output.id());
                             appdata
                                 .outputs
                                 .borrow_mut()
@@ -344,6 +344,7 @@ impl Application {
                             }
                         }
                         outputs::Event::Removed(output) => {
+                            tracing::trace!("output removed {:?} {:?}", output.gid, output.id());
                             appdata.outputs.borrow_mut().remove(&output.id());
                             for (_, win) in appdata.handles_iter() {
                                 surfaces::Outputs::removed(&win, &output);
@@ -400,8 +401,8 @@ impl Application {
 }
 
 impl surfaces::Compositor for ApplicationData {
-    fn output(&self, id: u32) -> Option<outputs::Meta> {
-        self.outputs.borrow().get(&id).cloned()
+    fn output(&self, id: &u32) -> Option<outputs::Meta> {
+        self.outputs.borrow().get(id).cloned()
     }
 
     fn create_surface(&self) -> wl::Main<WlSurface> {
@@ -451,29 +452,6 @@ impl ApplicationData {
     fn current_window_id(&self) -> u64 {
         static DEFAULT: u64 = 0_u64;
         *self.active_surface_id.borrow().get(0).unwrap_or(&DEFAULT)
-    }
-
-    pub(super) fn initial_window_size(&self, defaults: kurbo::Size) -> kurbo::Size {
-        // compute the initial window size.
-        let initialwidth = if defaults.width == 0.0 {
-            f64::INFINITY
-        } else {
-            defaults.width
-        };
-        let initialheight = if defaults.height == 0.0 {
-            f64::INFINITY
-        } else {
-            defaults.height
-        };
-        return self.outputs.borrow().iter().fold(
-            kurbo::Size::from((initialwidth, initialheight)),
-            |computed, entry| {
-                kurbo::Size::new(
-                    computed.width.min(entry.1.logical.width.into()),
-                    computed.height.min(entry.1.logical.height.into()),
-                )
-            },
-        );
     }
 
     pub(super) fn acquire_current_window(&self) -> Option<WindowHandle> {

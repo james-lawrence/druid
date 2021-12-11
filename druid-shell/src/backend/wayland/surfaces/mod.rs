@@ -23,7 +23,7 @@ pub mod toplevel;
 pub static GLOBAL_ID: crate::Counter = crate::Counter::new();
 
 pub trait Compositor {
-    fn output(&self, id: u32) -> Option<outputs::Meta>;
+    fn output(&self, id: &u32) -> Option<outputs::Meta>;
     fn create_surface(&self) -> wlc::Main<WlSurface>;
     fn shared_mem(&self) -> wlc::Main<WlShm>;
     fn get_xdg_surface(&self, surface: &wlc::Main<WlSurface>)
@@ -99,7 +99,7 @@ impl CompositorHandle {
         tracing::debug!("computing scale using {:?} outputs", outputs.len());
         let scale = outputs.iter().fold(0, |scale, id| {
             tracing::debug!("recomputing scale using output {:?}", id);
-            match compositor.output(*id) {
+            match compositor.output(id) {
                 None => {
                     tracing::warn!(
                         "we still have a reference to an output that's gone away. The output had id {}",
@@ -122,7 +122,7 @@ impl CompositorHandle {
 }
 
 impl Compositor for CompositorHandle {
-    fn output(&self, id: u32) -> Option<outputs::Meta> {
+    fn output(&self, id: &u32) -> Option<outputs::Meta> {
         match self.inner.upgrade() {
             None => None,
             Some(c) => c.output(id),
