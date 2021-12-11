@@ -14,8 +14,11 @@
 
 //! Platorm specific extensions.
 
-#[cfg(any(doc, any(target_os = "linux", target_os = "openbsd")))]
+#[cfg(any(doc, target_os = "linux"))]
 pub mod linux;
 
 #[cfg(any(doc, target_os = "macos"))]
 pub mod mac;
+
+#[cfg(any(doc, all(feature = "wayland", target_os = "linux")))]
+pub mod wayland;
