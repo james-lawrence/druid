@@ -514,25 +514,19 @@ impl ApplicationData {
     fn idle_repaint(loophandle: calloop::LoopHandle<'_, std::sync::Arc<ApplicationData>>) {
         loophandle.insert_idle({
             move |appdata| {
-                match appdata.acquire_current_window() {
-                    Some(winhandle) => {
-                        tracing::trace!("idle processing initiated");
-
-                        winhandle.request_anim_frame();
-                        winhandle.run_idle();
-                        // if we already flushed this cycle don't flush again.
-                        if *appdata.display_flushed.borrow() {
-                            tracing::trace!("idle repaint flushing display initiated");
-                            if let Err(cause) = appdata.wayland.queue.borrow().display().flush() {
-                                tracing::warn!("unable to flush display: {:?}", cause);
-                            }
+                tracing::trace!("idle processing initiated");
+                for (id, winhandle) in appdata.handles_iter() {
+                    winhandle.request_anim_frame();
+                    winhandle.run_idle();
+                    // if we already flushed this cycle don't flush again.
+                    if *appdata.display_flushed.borrow() {
+                        tracing::trace!("idle repaint flushing display initiated");
+                        if let Err(cause) = appdata.wayland.queue.borrow().display().flush() {
+                            tracing::warn!("unable to flush display: {:?}", cause);
                         }
-                        tracing::trace!("idle processing completed");
                     }
-                    None => tracing::error!(
-                        "unable to acquire current window, skipping idle processing"
-                    ),
-                };
+                }
+                tracing::trace!("idle processing completed");
             }
         });
     }
