@@ -507,7 +507,7 @@ impl ApplicationData {
     }
 
     /// Shallow clones surfaces so we can modify it during iteration.
-    fn handles_iter(&self) -> impl Iterator<Item = (u64, WindowHandle)> {
+    pub(super) fn handles_iter(&self) -> impl Iterator<Item = (u64, WindowHandle)> {
         self.handles.borrow().clone().into_iter()
     }
 
