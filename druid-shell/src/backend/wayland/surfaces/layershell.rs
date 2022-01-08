@@ -159,7 +159,10 @@ impl Config {
             self.margin.bottom,
             self.margin.left,
         );
-        ls.set_size(self.initial_size.width as u32, self.initial_size.height as u32);
+        ls.set_size(
+            self.initial_size.width as u32,
+            self.initial_size.height as u32,
+        );
     }
 }
 
@@ -220,20 +223,6 @@ impl Surface {
         std::sync::Arc::<surface::Data>::from(self).with_handler(f)
     }
 
-    fn initialize_dimensions(&self, dim: kurbo::Size) {
-        self.inner
-            .ls_surface
-            .borrow()
-            .set_size(dim.width as u32, dim.height as u32);
-        self.inner
-            .wl_surface
-            .borrow()
-            .inner
-            .handler
-            .borrow_mut()
-            .size(dim);
-    }
-
     fn initialize(handle: &Surface) {
         handle.inner.requires_initialization.replace(false);
         tracing::debug!("attempting to initialize layershell");
@@ -278,8 +267,18 @@ impl Surface {
             }
             layershell::zwlr_layer_surface_v1::Event::Closed => {
                 if let Some(o) = handle.inner.wl_surface.borrow().output() {
-                    handle.inner.output.borrow_mut().preferred.get_or_insert(o.name.clone());
-                    handle.inner.output.borrow_mut().current.get_or_insert(o.clone());
+                    handle
+                        .inner
+                        .output
+                        .borrow_mut()
+                        .preferred
+                        .get_or_insert(o.name.clone());
+                    handle
+                        .inner
+                        .output
+                        .borrow_mut()
+                        .current
+                        .get_or_insert(o.clone());
                 }
                 handle.inner.ls_surface.borrow().destroy();
                 handle.inner.available.replace(false);
@@ -298,7 +297,15 @@ impl Outputs for Surface {
 
     fn inserted(&self, o: &outputs::Meta) {
         let reinitialize = *self.inner.requires_initialization.borrow();
-        let reinitialize = self.inner.output.borrow().preferred.as_ref().map_or("", |name| &name) == o.name || reinitialize;
+        let reinitialize = self
+            .inner
+            .output
+            .borrow()
+            .preferred
+            .as_ref()
+            .map_or("", |name| &name)
+            == o.name
+            || reinitialize;
         if !reinitialize {
             tracing::debug!(
                 "skipping reinitialization output for layershell {:?} {:?}",
@@ -308,10 +315,13 @@ impl Outputs for Surface {
             return;
         }
 
-        tracing::debug!("reinitializing output for layershell {:?} {:?}", o.id(), o.name);
+        tracing::debug!(
+            "reinitializing output for layershell {:?} {:?}",
+            o.id(),
+            o.name
+        );
         let sdata = self.inner.wl_surface.borrow().inner.clone();
-        let replacedsurface = self
-            .inner
+        self.inner
             .wl_surface
             .replace(surface::Surface::replace(&sdata));
         let sdata = self.inner.wl_surface.borrow().inner.clone();

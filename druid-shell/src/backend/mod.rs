@@ -36,7 +36,7 @@ pub use x11::*;
 pub(crate) mod shared;
 
 #[cfg(all(feature = "wayland", any(target_os = "linux", target_os = "openbsd")))]
-mod wayland;
+pub(crate) mod wayland;
 #[cfg(all(feature = "wayland", any(target_os = "linux", target_os = "openbsd")))]
 pub use wayland::*;
 #[cfg(all(feature = "wayland", any(target_os = "linux", target_os = "openbsd")))]

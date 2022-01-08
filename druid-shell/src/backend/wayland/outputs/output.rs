@@ -135,7 +135,7 @@ impl XdgMeta {
 
     fn modify(&self, meta: &mut outputs::Meta) {
         if !self.handled {
-            return
+            return;
         }
 
         let state = self.state.borrow();

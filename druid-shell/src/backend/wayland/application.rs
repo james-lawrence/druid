@@ -344,7 +344,7 @@ impl Application {
                             }
                         }
                         outputs::Event::Removed(output) => {
-                            tracing::trace!("output removed {:?} {:?}", output.gid, output.id());
+                            tracing::debug!("output removed {:?} {:?}", output.gid, output.id());
                             appdata.outputs.borrow_mut().remove(&output.id());
                             for (_, win) in appdata.handles_iter() {
                                 surfaces::Outputs::removed(&win, &output);
@@ -515,7 +515,7 @@ impl ApplicationData {
         loophandle.insert_idle({
             move |appdata| {
                 tracing::trace!("idle processing initiated");
-                for (id, winhandle) in appdata.handles_iter() {
+                for (_id, winhandle) in appdata.handles_iter() {
                     winhandle.request_anim_frame();
                     winhandle.run_idle();
                     // if we already flushed this cycle don't flush again.

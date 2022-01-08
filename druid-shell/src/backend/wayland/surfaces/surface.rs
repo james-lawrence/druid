@@ -252,7 +252,7 @@ pub struct Data {
 
 impl Data {
     pub(crate) fn output(&self) -> Option<outputs::Meta> {
-        match self.outputs.borrow().iter().find(|x| true) {
+        match self.outputs.borrow().iter().find(|_| true) {
             None => None,
             Some(id) => self.compositor.output(id),
         }
