@@ -476,7 +476,7 @@ impl WindowBuilder {
 
         tracing::debug!("popup {:?}", config);
 
-        popup::create(&parent.0, &config, self.appdata, self.handler)
+        return popup::create(&parent.0, &config, self.appdata, self.handler);
     }
 }
 

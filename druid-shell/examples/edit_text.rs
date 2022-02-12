@@ -358,6 +358,7 @@ fn apply_movement(
 }
 
 fn main() {
+    tracing_subscriber::fmt().init();
     let app = Application::new().unwrap();
     let mut builder = WindowBuilder::new(app.clone());
     builder.set_handler(Box::<AppState>::default());
